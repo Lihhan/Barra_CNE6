@@ -403,6 +403,7 @@ def fit_group(group, valuename):
     return group
 
 def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_stk):
+    result_con_forecast['con_ep'] = 1 / result_con_forecast['con_pe']
     def prepare_demo_pivot(df):
         df_pivot = pd.pivot_table(df, index='entrytime', columns='securityid', values='mkt', fill_value=None)
         df_pivot.reset_index(inplace=True)
@@ -448,7 +449,7 @@ def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_
     df_demo['securityid'] = df_demo['securityid'].astype(str).str.zfill(6)
     df_demo.rename(columns={'date': 'entrytime'}, inplace=True)
 
-    merged_df_1 = process_and_merge(df_demo, result_con_forecast, 'con_pe')
+    merged_df_1 = process_and_merge(df_demo, result_con_forecast, 'con_ep')
     merged_df_2 = process_and_merge(df_demo, result_rpt_forecast, 'forecast_dps')
     merged_df_3 = process_and_merge(df_demo, result_con_forecast, 'con_pe_change')
     merged_df_4 = process_and_merge(df_demo, result_con_forecast, 'con_eps_change')
@@ -460,7 +461,7 @@ def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_
     df5_extracted = merged_df_5[['moving_avg_adjustment_ratio']]
     merged_df = pd.concat([merged_df_1, df2_extracted, df3_extracted, df4_extracted, df5_extracted], axis=1)
 
-    merged_df['EARNYILD'] = 1 / 4 * (1 / merged_df['con_pe'] + merged_df['EP'] + merged_df['1/PCF'] + merged_df['1/EBITDA'])
+    merged_df['EARNYILD'] = 1 / 4 * (merged_df['con_ep'] + merged_df['EP'] + merged_df['1/PCF'] + merged_df['1/EBITDA'])
     merged_df['DIVYILD'] = 1 / 2 * (merged_df['forecast_dps'] / merged_df['close'] + merged_df['DPS'])
     merged_df['AnalystSentiment'] = 1 / 3 * (merged_df['moving_avg_adjustment_ratio'] + merged_df['con_pe_change'] + merged_df['con_eps_change'])
     
@@ -468,7 +469,7 @@ def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_
     merged_df = merged_df.groupby('entrytime').apply(fit_group, 'DIVYILD')
     merged_df = merged_df.groupby('entrytime').apply(fit_group, 'AnalystSentiment')
 
-    merged_df.drop(columns=['con_pe', 'EP', '1/PCF', '1/EBITDA', 'forecast_dps', 'close', 'DPS', 'moving_avg_adjustment_ratio', 'con_pe_change', 'con_eps_change'], inplace=True)
+    merged_df.drop(columns=['con_ep', 'EP', '1/PCF', '1/EBITDA', 'forecast_dps', 'close', 'DPS', 'moving_avg_adjustment_ratio', 'con_pe_change', 'con_eps_change'], inplace=True)
     return merged_df
 
 def process_df3(df_demo, result_con_forecast):
