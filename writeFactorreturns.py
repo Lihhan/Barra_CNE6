@@ -1,4 +1,5 @@
 from calcTools import *
+from decimal import Decimal
 from datetime import datetime
 import pandas as pd
 import os
@@ -10,7 +11,6 @@ sys.path.append(parent_path) # add current terminal path to sys.path
 
 from functools import reduce
 import config
-# from predictRisk import *
 import globalVariables
 from getFactorExpo import *
 
@@ -65,22 +65,10 @@ def ProceeedOneDayFactorDf(date, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Rel
         left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
         EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, LTREVRSL, \
         EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal], axis=1, join='inner')
-    
-    # TODO 暂做均值填充
-    for column in list(data.columns[data.isnull().sum() > 0]):  # 只有因子值均值填充
-        mean_val = data[column].mean()
-        data[column].fillna(mean_val, inplace=True)
-    data.fillna(data.mean(), inplace=True)
-    print('datahere!')
-    print(data)
-    
-    # data = data.dropna()
     print("data finish!")
     Industry0 = IndustryID2Dummy(INDUSTRY)
     Industry0.index.name = 'securityid'
-    print(Industry0)
     res = pd.concat([Industry0, data], axis=1, join='inner')
-    # res = res.dropna()
     return res
 
 def BarraModel(previous_date, date1, stockreturn, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
@@ -137,7 +125,6 @@ def BarraModel(previous_date, date1, stockreturn, SIZE, MIDCAP, hs300_Relative_N
     P=np.dot(np.dot(np.dot(np.dot(R,np.mat(np.dot(np.dot(np.dot(np.dot(R.T,X.T),V),X),R)).I),R.T),X.T),V)#直接引用带权重，带约束条件的最小二乘回归求解，得到纯因子组合的股票权重矩阵。
     # 因子收益
     FactorReturn=pd.DataFrame(np.dot(P,np.mat(returns).T),columns=[date1],index=AllData.columns[:-2])#因子收益
-    print('FactorReturn:',FactorReturn)
     # 异质收益
     SpecificReturn = pd.DataFrame(np.mat(returns).T-np.dot(X,FactorReturn),columns=['SpecificReturn'],index = AllData.index)
     # 因子暴露
@@ -178,16 +165,12 @@ def write_history_factor_return(start_date, end_date):
     rpt_earnings_stk = process_earnings()
     df1 = process_df1(df1, result_con_forecast, result_rpt_forecast, rpt_earnings_stk)
     df3 = process_df3(df3, result_con_forecast)
-    print(df1, df3)
     df1.index = df1.index.set_names(['entrytime', 'temp1', 'temp2', 'temp3'])
     df3.index = df3.index.set_names(['entrytime', 'temp1', 'temp2'])
     df1 = df1.reset_index()
     df3 = df3.reset_index()
     df1.rename(columns={'entrytime':'date'},inplace=True)
     df3.rename(columns={'entrytime':'date'},inplace=True)
-    df1.to_parquet('saved_files/df1.parquet')
-    df2.to_parquet('saved_files/df2.parquet')
-    df3.to_parquet('saved_files/df3.parquet')
     neg_mkt_df_pivot = df1.pivot_table('mkt', columns='securityid', index='date')
     ChangePCT = df1.pivot_table('ChangePCT', columns='date', index='securityid')
     for date in date_series:
@@ -200,14 +183,11 @@ def write_history_factor_return(start_date, end_date):
             df2_temp = df2[df2['date']==previous_date]
             df3_temp = df3[df3['date']==previous_date]
 
-
             X, FactorReturn, SpecificReturn, residstemp = getBarraRes(previous_date, date, df1_temp, df2_temp, df3_temp, neg_mkt_df_pivot, ChangePCT)
             
             tmp = FactorReturn.T
             tmp.index = [date_str]
             factor_return = pd.concat([factor_return, tmp])
-            print(factor_return)
-            print('SpecificReturn',SpecificReturn.shape)
             SpecificReturn.rename({'SpecificReturn':date_str},axis=1,inplace=True)
             SpecificReturn['securityid'] = SpecificReturn.index
             SpecificReturn.reset_index(drop=True,inplace=True)
@@ -215,7 +195,6 @@ def write_history_factor_return(start_date, end_date):
             
         except Exception as e:
             print(date,'error!',e)
-    print('factor_return:',factor_return)
     factor_return.reset_index(drop=True)
     specific_R = reduce(lambda left, right: pd.merge(left, right, on=['securityid'],how='outer'), specific_return)  # inner会导致股票数量变少出错
     factor_return.to_hdf('saved_files/factor_return.hdf', key='factor_return')
