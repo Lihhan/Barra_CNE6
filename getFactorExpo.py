@@ -105,9 +105,6 @@ def short_time_daily_factors(df, params):
     
     DPS = np.array(df['basic/fdmt/perCashDiv'])[-1]
     factor['DPS'] = DPS / close[-1]
-    # TODO
-    # predict_DPS = 
-    # factor['DIVYILD'] = (1/2 * (DPS + predict_DPS)
     
     revenue = np.array(df['basic/fdmt/revenue_ttm'])[-1]
     cogs = np.array(df['basic/fdmt/COGS_ttm'])[-1]
@@ -121,7 +118,7 @@ def short_time_daily_factors(df, params):
     logret = np.log(1+ret)
     logmkt = np.log(1+benchmark)
     excess_return = logret - logmkt
-    neg_ewm_sum = -excess_return.ewm(halflife=10, min_periods=1).sum()
+    neg_ewm_sum = -excess_return.ewm(halflife=10, min_periods=1).mean().rolling(window=63).sum()
     lagged_neg_ewm_sum = neg_ewm_sum.shift(1)
     factor['ShortTermReversal'] = calculator.fit(lagged_neg_ewm_sum.rolling(window=3, min_periods=1).mean().iloc[-1], neg, 3)
     
@@ -187,12 +184,12 @@ def mid_time_daily_factors(df, params):
     NOA = t_asset[-1] - t_liab[-1] + intDebt[-1]
     NOA_t4 = t_asset_t1[-1] - t_liab_t1[-1] + intDebt[-2]
     ACCR_BS = NOA - NOA_t4 - cash[-1] - DA[-1]
-    ABS = calculator.fit(-ACCR_BS / t_asset[-1], neg, 3)
+    ABS = -ACCR_BS / t_asset[-1]
     nincome = np.array(df['basic/fdmt/NIncome_ttm'])[-1]
     CFO = np.array(df['basic/fdmt/nCfOperateA'])[-1]
     CFI = np.array(df['basic/fdmt/nCfFrInvestA'])[-1]
     ACCR_CF = nincome - CFO - CFI + DA[-1]
-    ACF = calculator.fit(-ACCR_CF / t_asset[-1], neg, 3)
+    ACF = -ACCR_CF / t_asset[-1]
     factor['EARNQLTY'] = calculator.fit(1/2 * (ABS + ACF), neg, 3)
     
     return factor
@@ -230,8 +227,7 @@ def long_time_daily_factors(df, params):
     beta_RPS = calculator.calc_growth_rate(RPS.tail(20)) # 5年期
     factor['beta_EPS'] = beta_EPS
     factor['beta_RPS'] = beta_RPS
-    
-    # TODO
+
     revenue_varate = bn.move_var(RPS, window=20, min_count=1, axis=0)[-1] / bn.move_mean(RPS, window=20, min_count=1, axis=0)[-1]
     factor['revenue_varate'] = calculator.fit(revenue_varate, neg, 3)
     n_income = df['basic/fdmt/NIncome_ttm'].iloc[::63, :]
@@ -323,6 +319,8 @@ def process_con():
     df_1y.sort_values(by=['entrytime', 'securityid'], inplace=True)
     df_1y.drop(columns=['con_npcgrate_2y'], inplace=True)
     result_df_1y = df_1y.groupby(['entrytime', 'securityid'])[['con_pe', 'con_eps']].mean().reset_index()
+    
+    # TODO 这里是导致先前出现大量NAN的问题所在，下面的min_periods=1是为了解决这个问题
     result_df_1y['con_eps_std'] = (
         result_df_1y.sort_values('entrytime')
         .groupby('securityid')['con_eps']
@@ -439,13 +437,9 @@ def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_
         demo_pivot_reset = merge_and_update(demo_pivot, result_df, value_col)
         merged_df = pd.merge(df_demo_sorted, demo_pivot_reset, how='left', on=['entrytime', 'securityid'])
         merged_df.index = merged_df['entrytime']
-        merged_df = merged_df.groupby(level='entrytime').apply(fit_group, value_col)
-        merged_df.drop(columns=['entrytime'], inplace=True)
-        merged_df = merged_df.reset_index(level=0)
         merged_df.drop(columns=['entrytime'], inplace=True)
         merged_df.index.name = 'entrytime'
         return merged_df
-
     df_demo['securityid'] = df_demo['securityid'].astype(str).str.zfill(6)
     df_demo.rename(columns={'date': 'entrytime'}, inplace=True)
 
@@ -462,7 +456,7 @@ def process_df1(df_demo, result_con_forecast, result_rpt_forecast, rpt_earnings_
     merged_df = pd.concat([merged_df_1, df2_extracted, df3_extracted, df4_extracted, df5_extracted], axis=1)
 
     merged_df['EARNYILD'] = 1 / 4 * (merged_df['con_ep'] + merged_df['EP'] + merged_df['1/PCF'] + merged_df['1/EBITDA'])
-    merged_df['DIVYILD'] = 1 / 2 * (merged_df['forecast_dps'] / merged_df['close'] + merged_df['DPS'])
+    merged_df['DIVYILD'] = 1 / 2 * (merged_df['forecast_dps'] / merged_df['close'].shift(21) + merged_df['DPS'])
     merged_df['AnalystSentiment'] = 1 / 3 * (merged_df['moving_avg_adjustment_ratio'] + merged_df['con_pe_change'] + merged_df['con_eps_change'])
     
     merged_df = merged_df.groupby('entrytime').apply(fit_group, 'EARNYILD')
@@ -509,9 +503,6 @@ def process_df3(df_demo, result_con_forecast):
         demo_pivot_reset = merge_and_update(demo_pivot, result_df, value_col)
         merged_df = pd.merge(df_demo_sorted, demo_pivot_reset, how='left', on=['entrytime', 'securityid'])
         merged_df.index = merged_df['entrytime']
-        merged_df = merged_df.groupby(level='entrytime').apply(fit_group, value_col)
-        merged_df.drop(columns=['entrytime'], inplace=True)
-        merged_df = merged_df.reset_index(level=0)
         merged_df.drop(columns=['entrytime'], inplace=True)
         merged_df.index.name = 'entrytime'
         return merged_df
