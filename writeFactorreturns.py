@@ -201,65 +201,6 @@ def write_history_factor_return(start_date, end_date):
     specific_R.to_hdf('saved_files/specific_R.hdf',key='specific_return')
     return 0
 
-def update_factor_return(end_date):
-
-    # existed_f_return = pd.read_hdf(config.factor_return_saved_path+'Barra_factor_returns_CNE6.h5') # TODO 存储路径待指定
-    # existed_sp_return = pd.read_hdf(config.factor_return_saved_path+'Barra_specific_returns_CNE6.h5')
-    existed_f_return = pd.read_hdf('saved_files/factor_return.hdf')
-    existed_sp_return = pd.read_hdf('saved_files/specific_R.hdf')
-    
-    start_date = existed_f_return.index[-1]
-    date_series = get_tradedate_calendar(start_date,end_date)  # 不包括最第一天，包括最后一天
-    factor_return = pd.DataFrame()
-    specific_return = []
-
-    if date_series == []:
-        print('no date needs updating!')
-    else:
-        df1 = get_one_day_factors_CNE6('daily/short_time_rolling_factors', start_date, end_date)
-        df2 = get_one_day_factors_CNE6('daily/mid_time_rolling_factors', start_date, end_date)
-        df3 = get_one_day_factors_CNE6('daily/long_time_rolling_factors', start_date, end_date)
-        result_con_forecast = process_con()
-        result_rpt_forecast = process_rpt()
-        rpt_earnings_stk =  process_earnings()
-        df1 = process_df1(df1, result_con_forecast, result_rpt_forecast, rpt_earnings_stk)
-        df3 = process_df3(df3, result_con_forecast)
-        df1 = df1.reset_index()
-        df3 = df3.reset_index()
-        df1.rename(columns={'entrytime':'date'},inplace=True)
-        df3.rename(columns={'entrytime':'date'},inplace=True)
-        neg_mkt_df_pivot = df1.pivot_table('mkt', columns='securityid', index='date')
-        ChangePCT = df1.pivot_table('ChangePCT', columns='date', index='securityid')
-        for date in date_series:
-            try:
-                df1_temp = df1[df1['date']==previous_date]
-                df2_temp = df2[df2['date']==previous_date]
-                df3_temp = df3[df3['date']==previous_date]
-                date_str = datetime.strftime(date,'%Y-%m-%d')
-                previous_date = datetime.strftime(get_last_tradedate(date_str),'%Y-%m-%d')  # 小于date1的交易日期序列
-                print(date_str, previous_date)  # 当天的收益率和前一天的因子暴露回归得到当天的因子收益率
-
-                X, FactorReturn, SpecificReturn, residstemp = getBarraRes(previous_date, date, df1_temp, df2_temp, df3_temp, neg_mkt_df_pivot, ChangePCT)
-                tmp = FactorReturn.T
-                tmp.index = [date_str]
-                factor_return = factor_return.append(tmp)
-                print('SpecificReturn',SpecificReturn.shape)
-                SpecificReturn.rename({'SpecificReturn':date_str},axis=1,inplace=True)
-                SpecificReturn['SECUCODE'] = SpecificReturn.index
-                SpecificReturn.reset_index(drop=True,inplace=True)
-                specific_return.append(SpecificReturn)
-            except Exception as e:
-                print(date,'error!',e)
-
-        factor_return.reset_index(drop=True)
-        specific_R = reduce(lambda left, right: pd.merge(left, right, on=['SECUCODE'],how='inner'), specific_return)
-        new_factor_return = existed_f_return.append(factor_return)
-        new_specific_return = pd.merge(existed_sp_return,specific_R,on='SECUCODE',how='inner')
-
-        new_factor_return.to_hdf('saved_files/factor_return.hdf', key='factor_return')
-        new_specific_return.to_hdf('saved_files/specific_R.hdf',key='specific_return')
-
-
 if __name__ == '__main__':
     import warnings
     warnings.filterwarnings("ignore")
@@ -267,4 +208,3 @@ if __name__ == '__main__':
     start_date = '2024-07-10'  # todo:测试用，生成更长的历史数据
     end_date = '2024-07-15'
     write_history_factor_return(start_date,end_date)
-    # update_factor_return('2021-10-25')
