@@ -24,7 +24,7 @@ def add_market(secucode):
 
 def ProceeedOneDayFactorDf(date, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
     left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, \
+    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
     LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal, INDUSTRY):
     print("start data!")
     BETA.columns = ['BETA']
@@ -53,17 +53,18 @@ def ProceeedOneDayFactorDf(date, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Rel
     INVSQLTY.columns = ['INVSQLTY']
     EARNQLTY.columns = ['EARNQLTY']
     AnalystSentiment.columns= ['AnalystSentiment']
+    INDMOM.columns = ['INDMOM']
     Seasonality.columns = ['Seasonality']
     ShortTermReversal.columns = ['ShortTermReversal']
     
     for df in [BETA, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
         left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-        EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, LTREVRSL, \
+        EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM, LTREVRSL, \
         EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal]:
         df.index = df.index.map(add_market)
     data = pd.concat([BETA, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
         left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-        EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, LTREVRSL, \
+        EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM, LTREVRSL, \
         EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal], axis=1, join='inner')
     print("data finish!")
     Industry0 = IndustryID2Dummy(INDUSTRY)
@@ -73,13 +74,15 @@ def ProceeedOneDayFactorDf(date, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Rel
 
 def BarraModel(previous_date, date1, stockreturn, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
     left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, \
+    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
     LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal, INDUSTRY, NegotiableMV):
     
     factorvalue = ProceeedOneDayFactorDf(previous_date, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
     left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, \
+    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
     LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal, INDUSTRY)
+    
+    factorvalue.to_parquet('factorvalue.parquet')
     
     print("getfactorvalue")
     NegotiableMV = NegotiableMV.rename(columns=add_market)
@@ -137,14 +140,29 @@ def getBarraRes(previous_date, date, df1_temp, df2_temp, df3_temp, neg_mkt_df_pi
 
     SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
     left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize, \
-    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, \
+    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
     LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal, INDUSTRY = get_pivot_factors(df1_temp, df2_temp, df3_temp, previous_date)
+    
+    def filled_factor(factor):
+        non_nan_indices = ~np.isnan(factor.values)
+        y = factor.values[non_nan_indices]
+        X = np.array(SIZE)[non_nan_indices]
+        numerator = np.nansum((X - np.nanmean(X)) * (y - np.nanmean(y)))
+        denominator = np.nansum((X - np.nanmean(X)) ** 2)
+        beta = numerator / denominator
+        alpha = np.nanmean(y) - beta * np.nanmean(X)
+        factor = beta*SIZE + alpha
+        return 0
+    
+    for factor in [BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
+    LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal]:
+        filled_factor(factor)
     
     print('barra model getting in')
 
     X, FactorReturn, SpecificReturn, residstemp = BarraModel(previous_date, date, ChangePCT, SIZE, MIDCAP, hs300_Relative_NLSize, csi500_Relative_NLSize, csi1000_Relative_NLSize,\
     left_hs300_Relative_NLSize, left_csi500_Relative_NLSize, left_csi1000_Relative_NLSize, right_hs300_Relative_NLSize, right_csi500_Relative_NLSize, right_csi1000_Relative_NLSize,\
-    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, \
+    BETA, RESVOL, EARNYILD, GROWTH, BTOP, LEVERAGE, LIQUIDTY, DIVYILD, PROFIT, MOMENTUM, INDMOM,\
     LTREVRSL, EARNVAR, INVSQLTY, EARNQLTY, AnalystSentiment, Seasonality, ShortTermReversal, INDUSTRY, neg_mkt_df_pivot)
     
     return X,FactorReturn,SpecificReturn,residstemp
@@ -182,7 +200,7 @@ def write_history_factor_return(start_date, end_date):
             df1_temp = df1[df1['date']==previous_date]
             df2_temp = df2[df2['date']==previous_date]
             df3_temp = df3[df3['date']==previous_date]
-
+            
             X, FactorReturn, SpecificReturn, residstemp = getBarraRes(previous_date, date, df1_temp, df2_temp, df3_temp, neg_mkt_df_pivot, ChangePCT)
             
             tmp = FactorReturn.T
@@ -206,5 +224,5 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     # 今天的收盘后股票收益率以及昨天的因子暴露计算得到今天的因子收益率
     start_date = '2024-07-10'  # todo:测试用，生成更长的历史数据
-    end_date = '2024-07-15'
+    end_date = '2024-07-11'
     write_history_factor_return(start_date,end_date)
